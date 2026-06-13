@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "WarEraHub Sync",
-  "version": "0.1.0",
-  "description": "Sincroniza o teu perfil do WarEra para o WarEraHub, sem copiar cookies ou tokens.",
+  "version": "0.2.0",
+  "description": "Sincroniza dados locais do WarEra com o WarEraHub sem guardar cookies, JWTs ou tokens em servidores externos.",
   "permissions": [
     "storage"
   ],
@@ -16,8 +16,7 @@
     "https://api6.warera.io/*",
     "http://localhost/*",
     "http://127.0.0.1/*",
-    "https://werahub.pt/*",
-    "https://www.werahub.pt/*",
+    "https://stellular-gecko-c76cd4.netlify.app/*",
     "https://warerahub.pt/*",
     "https://www.warerahub.pt/*"
   ],
@@ -35,8 +34,7 @@
       "matches": [
         "http://localhost/*",
         "http://127.0.0.1/*",
-        "https://werahub.pt/*",
-        "https://www.werahub.pt/*",
+        "https://stellular-gecko-c76cd4.netlify.app/*",
         "https://warerahub.pt/*",
         "https://www.warerahub.pt/*"
       ],
