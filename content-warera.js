@@ -51,6 +51,48 @@
     } catch {}
   }
 
+
+  function mergeUniqueBy(items, keyFn, limit) {
+    const map = new Map();
+    (items || []).filter(Boolean).forEach(item => {
+      const key = keyFn(item);
+      if (!key) return;
+      map.set(String(key), { ...(map.get(String(key)) || {}), ...item });
+    });
+    return Array.from(map.values()).slice(0, limit || 60);
+  }
+
+  function mergeBattleSyncPackets(previous, current) {
+    if (!previous || !previous.trusted) return current || null;
+    if (!current || !current.trusted) return previous || null;
+    const activeBattleIds = Array.from(new Set([
+      ...((previous.activeBattleIds || []).map(String)),
+      ...((current.activeBattleIds || []).map(String))
+    ])).slice(0, 80);
+    const orders = mergeUniqueBy([...(previous.orders || []), ...(current.orders || [])], o => o.id || `${o.battleId || o.battle}-${o.side}-${o.text || ''}`, 40);
+    const battles = mergeUniqueBy([...(previous.battles || []), ...(current.battles || [])], b => b.id || b._id || b.battleId, 60);
+    const live = mergeUniqueBy([...(previous.live || []), ...(current.live || [])], l => l.battleId || l.roundId || l.currentRound, 80);
+    return {
+      ...previous,
+      ...current,
+      source: current.source || previous.source || 'warera-trpc-battles',
+      trusted: true,
+      updatedAt: current.updatedAt || new Date().toISOString(),
+      activeBattleIds,
+      orders,
+      battles,
+      live,
+      diagnostics: {
+        ...((previous && previous.diagnostics) || {}),
+        ...((current && current.diagnostics) || {}),
+        mergedPrevious: true,
+        ordersStored: orders.length,
+        battlesStored: battles.length,
+        liveStored: live.length
+      }
+    };
+  }
+
   function mergeProfiles(oldProfile, payload, pendingResources, resourceCapture) {
     const oldId = oldProfile && oldProfile.user && oldProfile.user.id;
     const newId = payload && payload.user && payload.user.id;
@@ -88,7 +130,8 @@
       ])),
       resourceDebug: (payload && payload.resourceDebug) || (pendingResources && pendingResources.resourceDebug) || (resourceCapture && resourceCapture.resourceDebug) || base.resourceDebug || null,
       resourceCapture: resourceCapture || (pendingResources && pendingResources.resourcesTrusted ? pendingResources : null) || base.resourceCapture || null,
-      companySync: (payload && payload.companySync) || base.companySync || null
+      companySync: (payload && payload.companySync) || base.companySync || null,
+      battleSync: mergeBattleSyncPackets(base.battleSync, payload && payload.battleSync) || null
     };
     if (merged.resources && !Object.keys(merged.resources).length) merged.resources = null;
     return merged;
@@ -513,6 +556,7 @@
       const incomingResourceCapture = makeResourceCapture(payload);
       if (payload.user && payload.leveling && payload.skills) saveSyncHealth('profile', true, { message: 'Perfil e skills capturados', username: payload.user.username || null, level: payload.leveling.level || null });
       if (payload.resourcesTrusted && payload.resources) saveSyncHealth('inventory', true, { message: 'Inventário capturado', resources: payload.resources });
+      if (payload.battleSync && payload.battleSync.trusted) saveSyncHealth('orders', true, { message: 'Missões/Battles capturados', orders: (payload.battleSync.orders || []).length, battles: (payload.battleSync.battles || []).length, live: (payload.battleSync.live || []).length, source: payload.battleSync.source || 'warera-trpc-battles' });
 
       const isResourceOnly = payload.resourcesTrusted && payload.resources && !payload.user;
       if (isResourceOnly && !hasProfile) {

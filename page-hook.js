@@ -59,6 +59,16 @@
     return resultData(results[idx]);
   }
 
+  function collectByProcedure(procedures, results, name) {
+    const out = [];
+    procedures.forEach((proc, i) => {
+      if (proc !== name) return;
+      const value = resultData(results[i]);
+      if (value !== undefined && value !== null) out.push(value);
+    });
+    return out;
+  }
+
   function looksLikeUser(data) {
     return data && data._id && data.username && data.leveling && data.skills;
   }
@@ -321,6 +331,183 @@
     return map;
   }
 
+
+
+  function compactSide(side) {
+    if (!side || typeof side !== 'object') return null;
+    return {
+      country: side.country || null,
+      region: side.region || null,
+      wonRoundsCount: Number.isFinite(Number(side.wonRoundsCount)) ? Number(side.wonRoundsCount) : null,
+      countryOrders: Array.isArray(side.countryOrders) ? side.countryOrders.slice(0, 30) : [],
+      muOrders: Array.isArray(side.muOrders) ? side.muOrders.slice(0, 30) : [],
+      hitCount: Number.isFinite(Number(side.hitCount)) ? Number(side.hitCount) : null,
+      moneyPer1kDamages: Number.isFinite(Number(side.moneyPer1kDamages)) ? Number(side.moneyPer1kDamages) : null,
+      moneyPool: Number.isFinite(Number(side.moneyPool)) ? Number(side.moneyPool) : null,
+      bountyEffectiveAt: side.bountyEffectiveAt || null
+    };
+  }
+
+  function compactBattle(battle) {
+    if (!battle || typeof battle !== 'object') return null;
+    return {
+      id: battle._id || battle.id || null,
+      war: battle.war || null,
+      type: battle.type || null,
+      isActive: battle.isActive !== false,
+      isBigBattle: !!battle.isBigBattle,
+      isSystemResistance: !!battle.isSystemResistance,
+      roundsToWin: Number.isFinite(Number(battle.roundsToWin)) ? Number(battle.roundsToWin) : null,
+      currentRound: battle.currentRound || null,
+      rounds: Array.isArray(battle.rounds) ? battle.rounds.slice(0, 8) : [],
+      roundsHistory: Array.isArray(battle.roundsHistory) ? battle.roundsHistory.slice(-4) : (Array.isArray(battle.roundHistory) ? battle.roundHistory.slice(-4) : []),
+      attacker: compactSide(battle.attacker),
+      defender: compactSide(battle.defender),
+      updatedAt: battle.updatedAt || null,
+      createdAt: battle.createdAt || null
+    };
+  }
+
+  function compactLiveData(live) {
+    if (!live || typeof live !== 'object') return null;
+    const round = live.round || live;
+    const battleMeta = live.battle || {};
+    const attacker = round.attacker || {};
+    const defender = round.defender || {};
+    const roundId = round.roundId || round._id || null;
+    return {
+      battleId: live.battleId || round.battle || live.battleId || null,
+      roundId,
+      attackerCountry: attacker.country || round.attackerCountry || null,
+      defenderCountry: defender.country || round.defenderCountry || null,
+      attackerCountryOrders: Array.isArray(battleMeta.attackerCountryOrders) ? battleMeta.attackerCountryOrders.slice(0, 40) : [],
+      defenderCountryOrders: Array.isArray(battleMeta.defenderCountryOrders) ? battleMeta.defenderCountryOrders.slice(0, 40) : [],
+      attackerMoneyPer1kDamages: Number.isFinite(Number(battleMeta.attackerMoneyPer1kDamages)) ? Number(battleMeta.attackerMoneyPer1kDamages) : null,
+      attackerMoneyPool: Number.isFinite(Number(battleMeta.attackerMoneyPool)) ? Number(battleMeta.attackerMoneyPool) : null,
+      attackerBountyEffectiveAt: battleMeta.attackerBountyEffectiveAt || null,
+      defenderMoneyPer1kDamages: Number.isFinite(Number(battleMeta.defenderMoneyPer1kDamages)) ? Number(battleMeta.defenderMoneyPer1kDamages) : null,
+      defenderMoneyPool: Number.isFinite(Number(battleMeta.defenderMoneyPool)) ? Number(battleMeta.defenderMoneyPool) : null,
+      defenderBountyEffectiveAt: battleMeta.defenderBountyEffectiveAt || null,
+      attackerDamages: Number.isFinite(Number(attacker.damages ?? round.attackerDamages)) ? Number(attacker.damages ?? round.attackerDamages) : 0,
+      defenderDamages: Number.isFinite(Number(defender.damages ?? round.defenderDamages)) ? Number(defender.damages ?? round.defenderDamages) : 0,
+      attackerPoints: Number.isFinite(Number(attacker.points ?? round.attackerPoints)) ? Number(attacker.points ?? round.attackerPoints) : 0,
+      defenderPoints: Number.isFinite(Number(defender.points ?? round.defenderPoints)) ? Number(defender.points ?? round.defenderPoints) : 0,
+      hitCountAttacker: Number.isFinite(Number(attacker.hitCount)) ? Number(attacker.hitCount) : null,
+      hitCountDefender: Number.isFinite(Number(defender.hitCount)) ? Number(defender.hitCount) : null,
+      isActive: round.isActive !== false,
+      actualTickPoints: round.actualTickPoints ?? live.live?.actualTickPoints ?? null,
+      nextTickAt: round.nextTickAt || live.live?.nextTickAt || null,
+      ticksCount: live.live?.ticksCount ?? null,
+      roundUpdatedAt: round.updatedAt || null,
+      battleRoundIds: battleMeta && Array.isArray(battleMeta.roundIds) ? battleMeta.roundIds.slice(0, 8) : []
+    };
+  }
+
+
+  function compactOrder(order) {
+    if (!order || typeof order !== 'object') return null;
+    return {
+      id: order._id || order.id || null,
+      country: order.country || null,
+      user: order.user || null,
+      battle: order.battle || order.battleId || null,
+      battleId: order.battle || order.battleId || null,
+      side: order.side || null,
+      sideCountry: order.sideCountry || null,
+      text: order.text || null,
+      priority: order.priority || null,
+      isActive: order.isActive !== false,
+      createdAt: order.createdAt || null,
+      updatedAt: order.updatedAt || null
+    };
+  }
+
+
+  function mergeUniqueBy(items, keyFn, limit) {
+    const map = new Map();
+    (items || []).filter(Boolean).forEach(item => {
+      const key = keyFn(item);
+      if (!key) return;
+      map.set(String(key), { ...(map.get(String(key)) || {}), ...item });
+    });
+    return Array.from(map.values()).slice(0, limit || 60);
+  }
+
+  function mergeBattleSyncPackets(previous, current) {
+    if (!previous || !previous.trusted) return current || null;
+    if (!current || !current.trusted) return previous || null;
+    const activeBattleIds = Array.from(new Set([
+      ...((previous.activeBattleIds || []).map(String)),
+      ...((current.activeBattleIds || []).map(String))
+    ])).slice(0, 80);
+    const orders = mergeUniqueBy([...(previous.orders || []), ...(current.orders || [])], o => o.id || `${o.battleId || o.battle}-${o.side}-${o.text || ''}`, 40);
+    const battles = mergeUniqueBy([...(previous.battles || []), ...(current.battles || [])], b => b.id || b._id || b.battleId, 60);
+    const live = mergeUniqueBy([...(previous.live || []), ...(current.live || [])], l => l.battleId || l.roundId || l.currentRound, 80);
+    return {
+      ...previous,
+      ...current,
+      source: current.source || previous.source || 'warera-trpc-battles',
+      trusted: true,
+      updatedAt: current.updatedAt || new Date().toISOString(),
+      activeBattleIds,
+      orders,
+      battles,
+      live,
+      diagnostics: {
+        ...((previous && previous.diagnostics) || {}),
+        ...((current && current.diagnostics) || {}),
+        mergedPrevious: true,
+        ordersStored: orders.length,
+        battlesStored: battles.length,
+        liveStored: live.length
+      }
+    };
+  }
+
+  function makeBattleSync(procedures, results, procedureData) {
+    const orderPayloads = collectByProcedure(procedures, results, 'battleOrderSummary.getByBattle')
+      .flatMap(x => Array.isArray(x) ? x : (x ? [x] : []))
+      .map(compactOrder)
+      .filter(Boolean);
+    const battlePayloads = collectByProcedure(procedures, results, 'battle.getById')
+      .map(compactBattle)
+      .filter(b => b && b.id);
+    const livePayloads = collectByProcedure(procedures, results, 'battle.getLiveBattleData')
+      .map(compactLiveData)
+      .filter(Boolean);
+    const activeIdsPayloads = collectByProcedure(procedures, results, 'battle.getSortedActiveBattles')
+      .flatMap(x => Array.isArray(x) ? x : []);
+
+    if (!orderPayloads.length && !battlePayloads.length && !livePayloads.length && !activeIdsPayloads.length) return null;
+
+    const battleById = new Map(battlePayloads.map(b => [String(b.id), b]));
+    const liveByRound = new Map(livePayloads.filter(l => l.roundId).map(l => [String(l.roundId), l]));
+    const liveByBattle = new Map(livePayloads.filter(l => l.battleId).map(l => [String(l.battleId), l]));
+    const orders = orderPayloads.map(order => {
+      const battle = battleById.get(String(order.battleId || '')) || null;
+      const live = liveByBattle.get(String(order.battleId || '')) || liveByRound.get(String(battle && battle.currentRound || '')) || null;
+      return { ...order, battleObj: battle, live };
+    });
+
+    return {
+      source: 'warera-trpc-battles',
+      trusted: true,
+      updatedAt: new Date().toISOString(),
+      activeBattleIds: Array.from(new Set(activeIdsPayloads.map(String))).slice(0, 60),
+      orders: orders.slice(0, 20),
+      battles: battlePayloads.slice(0, 30),
+      live: livePayloads.slice(0, 30),
+      diagnostics: {
+        procedureNames: procedures.filter(p => /battle|order|round/i.test(p)).slice(0, 60),
+        ordersSeen: orders.length,
+        battlesSeen: battlePayloads.length,
+        liveSeen: livePayloads.length,
+        activeIdsSeen: activeIdsPayloads.length
+      }
+    };
+  }
+
+
   function normalizeUser(user, equipped, assets, companies, procedures, allResults, procedureData, resourcesOverride) {
     const skills = {};
     for (const key of skillKeys) {
@@ -405,7 +592,8 @@
       resourcesTrusted: !!(payload.resourcesTrusted || (lastPayload && lastPayload.resourcesTrusted)),
       assets: payload.assets || (lastPayload && lastPayload.assets) || null,
       assetBasics: payload.assetBasics || (lastPayload && lastPayload.assetBasics) || null,
-      companies: payload.companies || (lastPayload && lastPayload.companies) || null
+      companies: payload.companies || (lastPayload && lastPayload.companies) || null,
+      battleSync: mergeBattleSyncPackets(lastPayload && lastPayload.battleSync, payload.battleSync) || null
     };
     if (merged.resources && !Object.keys(merged.resources).length) merged.resources = null;
     lastPayload = merged;
@@ -433,9 +621,12 @@
     const assetBasics = getAssetBasics(assets);
     const companiesFromProcedure = pickByProcedure(procedures, results, 'company.getCompanies');
     const companies = extractCompanies({ companiesFromProcedure, allData, procedureData });
+    const battleSync = makeBattleSync(procedures, results, procedureData);
 
     if (looksLikeUser(user)) {
-      emit(normalizeUser(user, equipped, assets, companies, procedures, allData, procedureData, resources));
+      const normalized = normalizeUser(user, equipped, assets, companies, procedures, allData, procedureData, resources);
+      if (battleSync) normalized.battleSync = battleSync;
+      emit(normalized);
       return;
     }
 
@@ -443,7 +634,7 @@
     // cheguem antes do user.getMe nesta página. O content script faz o merge com o perfil
     // guardado ou guarda temporariamente até o perfil chegar. Empresas continuam a não ser
     // aceites como owned sem confirmação do user.getMe.
-    if (resourcesTrusted || assets || (companiesFromProcedure && lastPayload && lastPayload.isSelfProfile)) {
+    if (resourcesTrusted || assets || battleSync || (companiesFromProcedure && lastPayload && lastPayload.isSelfProfile)) {
       emit({
         source: 'warera-extension',
         isPartialCapture: true,
@@ -453,6 +644,7 @@
         resourcesTrusted,
         assets: assets || undefined,
         assetBasics: assetBasics || undefined,
+        battleSync: battleSync || undefined,
         rawResources: allData,
         resourceDebug: {
           resourcesTrusted,
