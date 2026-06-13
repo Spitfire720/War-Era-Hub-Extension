@@ -1,0 +1,59 @@
+{
+  "manifest_version": 3,
+  "name": "WarEraHub Sync",
+  "version": "0.1.0",
+  "description": "Sincroniza o teu perfil do WarEra para o WarEraHub, sem copiar cookies ou tokens.",
+  "permissions": [
+    "storage"
+  ],
+  "host_permissions": [
+    "https://app.warera.io/*",
+    "https://api1.warera.io/*",
+    "https://api2.warera.io/*",
+    "https://api3.warera.io/*",
+    "https://api4.warera.io/*",
+    "https://api5.warera.io/*",
+    "https://api6.warera.io/*",
+    "http://localhost/*",
+    "http://127.0.0.1/*",
+    "https://werahub.pt/*",
+    "https://www.werahub.pt/*",
+    "https://warerahub.pt/*",
+    "https://www.warerahub.pt/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "https://app.warera.io/*"
+      ],
+      "js": [
+        "content-warera.js"
+      ],
+      "run_at": "document_start"
+    },
+    {
+      "matches": [
+        "http://localhost/*",
+        "http://127.0.0.1/*",
+        "https://werahub.pt/*",
+        "https://www.werahub.pt/*",
+        "https://warerahub.pt/*",
+        "https://www.warerahub.pt/*"
+      ],
+      "js": [
+        "content-hub.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "page-hook.js"
+      ],
+      "matches": [
+        "https://app.warera.io/*"
+      ]
+    }
+  ]
+}
