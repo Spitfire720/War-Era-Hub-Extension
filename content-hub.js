@@ -9,86 +9,45 @@
     }
   }
 
-  function mergeResourceCapture(profile, capture) {
-    if (!profile || !capture || !capture.resourcesTrusted || !capture.resources) return profile;
+  function makeSafeProfile(result) {
+    const complianceStatus = result && result.warerahubComplianceStatus;
+    const publicApiSync = result && result.warerahubPublicApiSync;
+    const syncHealth = result && result.warerahubSyncHealth;
+
     return {
-      ...profile,
-      resourcesTrusted: true,
-      resources: { ...((profile.resourcesTrusted && profile.resources) || {}), ...(capture.resources || {}) },
-      assets: profile.assets || capture.assets || null,
-      assetBasics: profile.assetBasics || capture.assetBasics || null,
-      resourceCapture: capture,
-      resourceDebug: profile.resourceDebug || capture.resourceDebug || null
+      source: 'warerahub-extension-safe-mode',
+      extensionSafeMode: true,
+      publicApiOnly: true,
+      syncedAt: new Date().toISOString(),
+      complianceStatus: complianceStatus || {
+        safeMode: true,
+        publicApiOnly: true,
+        message: 'Safe Mode active. Private/JWT-only sync disabled.'
+      },
+      publicApiSync: publicApiSync || null,
+      battleSync: publicApiSync && publicApiSync.battleSync ? publicApiSync.battleSync : null,
+      syncHealth: syncHealth || {}
     };
-  }
-
-
-
-
-  function mergeCompanySync(profile, companyCapture) {
-    if (!profile || !companyCapture || !companyCapture.companiesTrusted) return profile;
-    return {
-      ...profile,
-      companiesConfirmed: true,
-      companySync: companyCapture,
-      companies: {
-        source: companyCapture.source || 'warera-companies-dom',
-        confirmed: true,
-        count: companyCapture.summary && companyCapture.summary.owned,
-        limit: companyCapture.summary && companyCapture.summary.limit,
-        workerCount: companyCapture.summary && companyCapture.summary.workers,
-        workerLimit: companyCapture.summary && companyCapture.summary.workerLimit,
-        list: companyCapture.list || [],
-        aeLevels: companyCapture.aeLevels || [],
-        products: companyCapture.products || [],
-        updatedAt: companyCapture.updatedAt || null
-      }
-    };
-  }
-
-  function mergeMarketPrices(profile, marketCapture) {
-    if (!profile || !marketCapture || !marketCapture.marketPricesTrusted || !marketCapture.prices) return profile;
-    return {
-      ...profile,
-      marketPricesTrusted: true,
-      marketPrices: marketCapture,
-      marketPricesUpdatedAt: marketCapture.updatedAt || null
-    };
-  }
-
-  function mergeSyncHealth(profile, health) {
-    if (!profile || !health || typeof health !== 'object') return profile;
-    return {
-      ...profile,
-      syncHealth: health
-    };
-  }
-
-  function mergeAllCaptures(profile, resourceCapture, marketCapture, companyCapture, syncHealth) {
-    return mergeSyncHealth(mergeCompanySync(mergeMarketPrices(mergeResourceCapture(profile, resourceCapture), marketCapture), companyCapture), syncHealth);
   }
 
   function publish(profile) {
     if (!profile) return;
     try { localStorage.setItem('warerahub_sync_profile', JSON.stringify(profile)); } catch {}
     try { window.postMessage({ type: 'WARERAHUB_EXTENSION_SYNC', payload: profile }, '*'); } catch {}
-    try {
-      window.dispatchEvent(new CustomEvent('warerahub-extension-sync', { detail: profile }));
-    } catch {}
+    try { window.dispatchEvent(new CustomEvent('warerahub-extension-sync', { detail: profile })); } catch {}
   }
 
   function loadAndPublish() {
     if (!alive || !hasRuntime()) { alive = false; return; }
     try {
-      chrome.storage.local.get(['warerahubProfile', 'warerahubResourceCapture', 'warerahubMarketPrices', 'warerahubCompanySync', 'warerahubSyncHealth'], (result) => {
+      chrome.storage.local.get(['warerahubComplianceStatus', 'warerahubPublicApiSync', 'warerahubSyncHealth'], (result) => {
         if (chrome.runtime.lastError) { alive = false; return; }
-        publish(mergeAllCaptures(result && result.warerahubProfile, result && result.warerahubResourceCapture, result && result.warerahubMarketPrices, result && result.warerahubCompanySync, result && result.warerahubSyncHealth));
+        publish(makeSafeProfile(result || {}));
       });
     } catch {
       alive = false;
     }
   }
-
 
   function clearExtensionSyncStorage() {
     try { localStorage.removeItem('warerahub_sync_profile'); } catch {}
@@ -100,6 +59,10 @@
         'warerahubPendingResourceCapture',
         'warerahubMarketPrices',
         'warerahubCompanySync',
+        'warerahubCombatStats',
+        'warerahubBattleSync',
+        'warerahubPublicApiSync',
+        'warerahubComplianceStatus',
         'warerahubSyncHealth'
       ], () => {
         if (chrome.runtime.lastError) { alive = false; return; }
@@ -114,6 +77,7 @@
   }
 
   loadAndPublish();
+
   const timer = setInterval(() => {
     if (!alive) { clearInterval(timer); return; }
     loadAndPublish();
@@ -123,11 +87,8 @@
     if (hasRuntime()) {
       chrome.storage.onChanged.addListener((changes, area) => {
         if (!alive) return;
-        if (area === 'local' && (changes.warerahubProfile || changes.warerahubResourceCapture || changes.warerahubMarketPrices || changes.warerahubCompanySync || changes.warerahubSyncHealth)) {
-          chrome.storage.local.get(['warerahubProfile', 'warerahubResourceCapture', 'warerahubMarketPrices', 'warerahubCompanySync', 'warerahubSyncHealth'], (result) => {
-            if (chrome.runtime.lastError) { alive = false; return; }
-            publish(mergeAllCaptures(result && result.warerahubProfile, result && result.warerahubResourceCapture, result && result.warerahubMarketPrices, result && result.warerahubCompanySync, result && result.warerahubSyncHealth));
-          });
+        if (area === 'local' && (changes.warerahubComplianceStatus || changes.warerahubPublicApiSync || changes.warerahubSyncHealth)) {
+          loadAndPublish();
         }
       });
     }
@@ -144,5 +105,4 @@
     });
     window.addEventListener('warerahub-clear-extension-sync', clearExtensionSyncStorage);
   } catch {}
-
 })();

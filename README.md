@@ -1,51 +1,67 @@
-# WarEraHub Sync Extension
+# WarEraHub v30 — Player Combat Stats + Bounty Profit Estimator 2.0
 
-Extensão local para sincronizar dados do WarEra com o WarEraHub.
+## Objetivo
+Melhorar a tab **Missões** para responder melhor à pergunta: **vale a pena gastar HP nesta bounty?**
 
-## Domínios suportados
+## O que entrou
 
-Esta versão está preparada para:
+- A extensão tenta capturar stats de combate na battle page via DOM.
+- O `page-hook.js` também calcula stats aproximadas a partir de `inventory.equippedItems` quando disponível.
+- O Hub passa a ler `combatStats` antes de cair nos valores antigos de skills.
+- O painel **Estado do jogador** mostra mais informação:
+  - HP disponível
+  - hits possíveis
+  - ataque / precisão
+  - crítico
+  - defesa / esquiva / loot
+  - dano estimado total
+- Cards de bounty mostram estimativa melhorada:
+  - hits possíveis
+  - dano estimado total
+  - dano estimado por hit
+  - moedas estimadas
+  - aviso quando o pool limita o ganho
 
-- `https://app.warera.io/*`
-- `http://localhost/*`
-- `http://127.0.0.1/*`
-- `https://stellular-gecko-c76cd4.netlify.app/*`
-- `https://warerahub.pt/*`
-- `https://www.warerahub.pt/*`
+## Ficheiros alterados
 
-## O que sincroniza
+- `src/App.jsx`
+- `extension/page-hook.js`
+- `extension/content-warera.js`
+- `extension/content-hub.js`
+- `README.md`
 
-- Perfil / skills
-- Inventário e recursos
-- Market prices
-- Empresas
-- Estado de sincronização modular
+## Como aplicar
 
-## Segurança
+Substitui os ficheiros pelos nomes exatos incluídos no zip.
 
-A extensão lê dados que já aparecem na sessão local do jogador no browser.
+Depois:
 
-Não envia cookies, JWTs, passwords ou tokens para um servidor externo.
+```bash
+npm run dev
+```
 
-## Instalação local
+E faz reload da extensão em:
 
-1. Faz download deste repositório ou zip.
-2. Extrai a pasta.
-3. Abre Chrome.
-4. Vai a `chrome://extensions`.
-5. Liga `Developer mode`.
-6. Clica `Load unpacked`.
-7. Seleciona a pasta da extensão.
-8. Abre WarEra e depois WarEraHub.
+```text
+chrome://extensions
+```
 
-## Teste rápido
+## Como testar
 
-1. Abre `https://app.warera.io/`.
-2. Vai a Profile, Inventory, Market e Companies.
-3. Abre o WarEraHub em localhost, Netlify ou `warerahub.pt`.
-4. Clica em `Recarregar dados locais`.
-5. Confirma que a sincronização mostra ticks para Perfil, Inventário, Market e Empresas.
+1. Abre WarEra.
+2. Vai a Battles.
+3. Entra numa batalha ou mantém a lista aberta até os dados carregarem.
+4. Volta ao Hub.
+5. Clica **Recarregar dados locais**.
+6. Abre **Missões**.
 
-## Estado
+Confirma:
 
-Beta / community testing.
+- Estado do jogador aparece com HP/hits.
+- Ataque e precisão aparecem se a extensão/API conseguir ler.
+- Bounty mostra estimativa com a tua vida.
+- Se não houver stats suficientes, o card pede para abrir battle/sincronizar.
+
+## Nota
+
+O cálculo continua a ser uma estimativa. O dano real no WarEra depende de crítico, miss, armadura, bónus, munição, estado da arma/equipamento e RNG.
